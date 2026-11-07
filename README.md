@@ -1,0 +1,1 @@
+An extremely lightweight Minecraft modloader client intended to minimize the amount of work necessary to load game mods without maximizing the storage space required to do so.
