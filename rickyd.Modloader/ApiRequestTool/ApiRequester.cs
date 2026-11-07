@@ -1,32 +1,40 @@
 using System.Web;
 using System.Text.Json;
 
-//TODO: Clean up this namespace and class a little bit
-//TODO: Make comments a little more helpful
-//TODO: Add summary comments and other C# snippits things as this is meant to work as a pseudo-library
 namespace rickyd.Modloader.ApiRequestTool
 {
+    /// <summary>
+    /// Class containing asyncronous methods for making HTTP GET requests from a given API url.
+    /// </summary>
+    /// <param name="apiUrl">Base URL for the API being referneced</param>
     class ApiRequester(string apiUrl)
     {
-        // Use one instance of an HttpClient for optimization
-        static readonly HttpClient httpClient = new();
-        static readonly JsonSerializerOptions options = new() { WriteIndented = true };
 
-        // Base URL for the Modrinth API that we are accessing
+        // Base URL for the API we are referencing, passed in on construction
         public string url = apiUrl;
 
+        /// <summary>
+        /// Calls an HTTP GET request to the API.
+        /// </summary>
+        /// <param name="requestArgs">Arguments for the API reference. 0th item is the path, each subsequent item is a key=value pair of query parameters.</param>
+        /// <returns>HttpResponseMessage from the HTTP GET request</returns>
         public async Task<HttpResponseMessage> Get (string[] requestArgs)
         {
-            if (requestArgs.Length.Equals(0))
+            // If there are no arguments passed in, throw an UnsuccessfulApiRequest exception.
+            if (requestArgs is null || requestArgs.Length.Equals(0))
             {
-                Debug.Err("API Request Error:  No API request was included");
-                return new();
+                Debug.Err("ApiRequester Error:  No api request added.");
+                throw new UnsuccessfulApiRequest("No api request added.");
             }
-            
-            // Build API Request URI from base url and additional provided arguments
+
+
+            /// =====================
+            /// Build API Request URI
+            /// =====================
 
             // Initial url should be the base url plus the additional request path given first in the arguments array
             UriBuilder uriBuilder = new(url + requestArgs[0]);
+            // Parse the initial input for uri queries, and start the list with any that are present
             var query = HttpUtility.ParseQueryString(uriBuilder.Query);
             // For each argument (beyond the request path) add it to the queryParams array
             for (int i = 1; i < requestArgs.Length; i++)
@@ -34,17 +42,24 @@ namespace rickyd.Modloader.ApiRequestTool
                 try {
                     string[] argument = requestArgs[i].Split('=');
                     query[argument[0]] = argument[1];
-                } catch { continue; }
+                } catch {
+                    Debug.Warn($"ApiRequester Warning: Argument {requestArgs[i]} was not in expected key=value format.");
+                    continue;
+                }
             }
             // Create the request url from the parameters
             uriBuilder.Query = query.ToString();
             string requestUrl = uriBuilder.ToString();
-            
+
+
+            /// ==============================
+            /// Make HTTP GET Request from API
+            /// ==============================
 
             try {
                 
                 // Send GET request asynchronously
-                HttpResponseMessage response = await httpClient.GetAsync(requestUrl);
+                HttpResponseMessage response = await Program.httpClient.GetAsync(requestUrl);
 
                 // Check if the HTTP status code of the response is successful
                 response.EnsureSuccessStatusCode();
@@ -56,11 +71,12 @@ namespace rickyd.Modloader.ApiRequestTool
 
             } catch (HttpRequestException err) {
                 // If there's a request error, display it
-                Debug.Warn($"Request error: {err.Message}");
-                throw new UnsuccessfulApiRequest();
+                Debug.Err(err.ToString());
+                throw new UnsuccessfulApiRequest($"HttpRequestException when making API Request {requestArgs[0]}\n ", err);
             }
         }
 
+        //TODO: Take a look at this. Ideally it parses JSON to be worked with, and could then be displayed whenever.
         public static async Task DisplayJson (HttpResponseMessage response, string name="")
         {
             string formattedJson;
@@ -73,14 +89,14 @@ namespace rickyd.Modloader.ApiRequestTool
                 using JsonDocument doc = JsonDocument.Parse(responseBody);
 
                 // Serialize with indented formatting
-                formattedJson = JsonSerializer.Serialize(doc.RootElement, options);
+                formattedJson = JsonSerializer.Serialize(doc.RootElement, Program.context.jsonFormat);
             } catch (JsonException){
                 // If the text fails to be formatted, return the original body
                 formattedJson = responseBody;
             }
 
             //Write the formatted text, with line breaks preceding and following
-            Debug.Log(name + "  =>  " + formattedJson);
+            Debug.Log($"API GET {name}  ->  {formattedJson}");
         }
     }
 
