@@ -1,10 +1,11 @@
-
+using rickyd.Modloader.ApiRequestTool;
 
 namespace rickyd.Modloader
 {
     class Program
     {
         public static Context context = new(DateTime.Now);
+        public static ApiRequester api = new("https://api.modrinth.com/v2/");
 
         public static async Task Main (string[] args)
         {
@@ -15,6 +16,7 @@ namespace rickyd.Modloader
             }
             File.AppendAllText(context.pathToLog, $"Starting rickyd.Modloader at {context.startTimestamp:F}.\n");
 
+            await api.Get(args);
         }
     }
 
