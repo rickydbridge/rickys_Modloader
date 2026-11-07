@@ -1,3 +1,5 @@
+
+
 namespace rickyd.Modloader
 {
     class Program
@@ -6,6 +8,12 @@ namespace rickyd.Modloader
 
         public static async Task Main (string[] args)
         {
+            // Create the logs folder if it doesn't exist, then create a log file for the existing context.
+            if (!Path.Exists(@".\logs"))
+            {
+                Directory.CreateDirectory(@".\logs");
+            }
+            File.AppendAllText(context.pathToLog, $"Starting rickyd.Modloader at {context.startTimestamp:F}.\n");
 
         }
     }
