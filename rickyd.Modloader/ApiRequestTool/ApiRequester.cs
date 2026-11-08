@@ -72,11 +72,10 @@ namespace rickyd.Modloader.ApiRequestTool
             } catch (HttpRequestException err) {
                 // If there's a request error, display it
                 Debug.Err(err.ToString());
-                throw new UnsuccessfulApiRequest($"HttpRequestException when making API Request {requestArgs[0]}\n ", err);
+                throw new UnsuccessfulApiRequest($"HttpRequestException when making API Request {requestArgs[0]}", err);
             }
         }
 
-        //TODO: Take a look at this. Ideally it parses JSON to be worked with, and could then be displayed whenever.
         public static async Task DisplayJson (HttpResponseMessage response, string name="")
         {
             string formattedJson;

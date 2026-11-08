@@ -1,3 +1,5 @@
+using System.CodeDom;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using rickyd.Modloader.ApiRequestTool;
@@ -12,7 +14,8 @@ namespace rickyd.Modloader
         public static readonly HttpClient httpClient = new();
         public static ApiRequester api = new("https://api.modrinth.com/v2/");
 
-        public static async Task Main (string[] args)
+        [STAThread]
+        public static void Main (string[] args)
         {
             try
             {
@@ -23,14 +26,16 @@ namespace rickyd.Modloader
                 Directory.CreateDirectory(@".\bin\downloads\mods");
                 File.AppendAllText(context.pathToLog, $"Starting rickyd.Modloader at {context.startTimestamp:F}.\n");
 
-                await DownloadModsFromList(args[0]);
+                Application.Run(new UI.MainWindow());
+
+                //await DownloadModsFromList(args[0]);
 
 
             }
             catch (Exception ex) { Debug.Err(ex.ToString()); throw; }
         }
 
-        private static async Task DownloadModsFromList(string path)
+        public static async Task DownloadModsFromList(string path)
         {
             string[] modlist = ParseModlist(path);
             string[] loaderContext = modlist[0].Split(" ");
@@ -60,11 +65,41 @@ namespace rickyd.Modloader
         /// <returns>A string array, where the first two elements are the modloader context, and every subsequent element is a modrinth slug.</returns>
         public static string[] ParseModlist (string path)
         {
-            Debug.Log($"Parsing modlist from file {Path.GetFullPath(path)}");
-            string[] parsedLines = File.ReadAllLines(path);
-            Debug.Log(string.Join("\n", parsedLines));
-            return parsedLines;
+            try
+            {
+                Debug.Log($"Parsing modlist from file {Path.GetFullPath(path)}");
+                // Parse all lines into an array
+                string[] parsedLines = File.ReadAllLines(path);
+                // Loader context is stored on the first line in format: LOADER X.X
+                string[] loaderContext = parsedLines[0].Split(" ");
+                // If the loader context is not one of the known types, throw an exception
+                // This technique catches files that would otherwise parse without exception to prevent them from reaching the ApiRequester
+                if (!new string[] { "fabric", "forge", "neoforge" }.Contains(loaderContext[0]))
+                    throw new UnsuccessfulModlistParse($"Loader context {{{loaderContext[0]}}} does not match any known form (eg. fabric, forge, etc.).");
+                return parsedLines;
+            } catch (Exception ex)
+            {
+                // If the exception caught is already of the right type, just rethrow it.
+                // Otherwise, we put it inside an UnsuccessfulModlistParse exception for additional context as to what caused the failure.
+                if (ex is UnsuccessfulModlistParse)
+                    throw;
+                throw new UnsuccessfulModlistParse($"Modlist failed to parse due to unforseen exception: {ex.Message}", ex);
+            }
         }
+    }
+
+    public class UnsuccessfulModlistParse : Exception
+    {
+        public UnsuccessfulModlistParse ()
+        {}
+
+        public UnsuccessfulModlistParse (string message) 
+            : base(message)
+        {}
+
+        public UnsuccessfulModlistParse (string message, Exception innerException)
+            : base (message, innerException)
+        {}
     }
 
     class Context(DateTime currentTimestamp)
